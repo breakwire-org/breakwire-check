@@ -1,0 +1,10 @@
+{
+  "name": "breakwire-check",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Action: fail or warn on Breakwire deadlines and advisories for your dependencies",
+  "license": "MIT",
+  "homepage": "https://github.com/breakwire-org/breakwire-check",
+  "repository": { "type": "git", "url": "git+https://github.com/breakwire-org/breakwire-check.git" },
+  "scripts": { "test": "node --test test/*.test.js" }
+}

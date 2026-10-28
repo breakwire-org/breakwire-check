@@ -1,0 +1,17 @@
+# Report only: annotations + job summary, never fails the build.
+name: Breakwire (warn only)
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  breakwire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - id: bw
+        uses: breakwire-org/breakwire-check@v1
+        with:
+          days: 60
+          on-deadline: warn
+          on-advisory: warn
+      - run: echo "Breakwire flagged ${{ steps.bw.outputs.flagged-count }} of ${{ steps.bw.outputs.applicable-count }} applicable claims"

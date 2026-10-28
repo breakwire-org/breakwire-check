@@ -1,0 +1,8 @@
+# comment
+anthropic==0.60.0
+openai>=1.0,<2   # inline comment
+slack_sdk
+mcp[cli]~=1.9 ; python_version >= "3.10"
+-r other.txt
+git+https://github.com/x/y.git
+litellm @ https://example.com/litellm.whl

@@ -1,0 +1,23 @@
+# .github/workflows/breakwire.yml
+# Fails the build when a dependency has a Breakwire deadline (model retirement, API shutdown, required migration)
+# within 30 days, or when a pinned/locked version is inside a security advisory's affected range.
+name: Breakwire stack check
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays: deadlines move toward you even when your code doesn't
+permissions:
+  contents: read
+jobs:
+  breakwire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: breakwire-org/breakwire-check@v1
+        with:
+          days: 30              # deadline window
+          on-deadline: fail     # fail | warn | ignore
+          on-advisory: fail     # fails only for pinned/locked versions in an affected range; otherwise warns
+          # path: services/api  # scan a subdirectory (default: whole repo)

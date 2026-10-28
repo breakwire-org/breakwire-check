@@ -1,0 +1,20 @@
+[project]
+name = "fixture"
+dependencies = [
+  "google-genai>=1.0",
+  "openai-agents==0.24.0",  # agents
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[dependency-groups]
+test = ["praisonai>=1"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+stripe = "^14.0"
+fastmcp = { version = "^2.0", extras = ["x"] }
+
+[tool.poetry.group.dev.dependencies]
+a2a-sdk = "*"

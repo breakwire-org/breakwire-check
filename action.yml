@@ -1,0 +1,44 @@
+name: 'Breakwire stack check'
+description: 'Fail or warn when a dependency has a Breakwire deadline (shutdown, retirement, required migration) within N days, or an advisory.'
+author: 'Ho Hum'
+branding:
+  icon: 'alert-triangle'
+  color: 'orange'
+inputs:
+  path:
+    description: 'Directory to scan for package.json, requirements*.txt and pyproject.toml (recursively; node_modules, .git, venvs skipped).'
+    default: '.'
+  files:
+    description: 'Optional: newline- or comma-separated list of manifest files to check instead of scanning.'
+    default: ''
+  days:
+    description: 'Flag deadlines that fall within this many days from today.'
+    default: '30'
+  on-deadline:
+    description: 'fail | warn | ignore for deadlines within `days`.'
+    default: 'fail'
+  on-advisory:
+    description: 'fail | warn | ignore for security advisories. fail applies only when a version pinned in the manifest (==1.2.3 / exact) or package-lock.json is inside an affected range; unpinned dependencies always get a warning.'
+    default: 'fail'
+  include-dev:
+    description: 'Include devDependencies / dev groups.'
+    default: 'true'
+  base-url:
+    description: 'Breakwire API base URL.'
+    default: 'https://breakwire.org'
+  fail-on-api-error:
+    description: 'Fail the step if Breakwire cannot be reached. Default false: an outage never breaks your build.'
+    default: 'false'
+  timeout-seconds:
+    description: 'Per-request timeout.'
+    default: '20'
+outputs:
+  applicable-count:
+    description: 'Number of Breakwire claims that apply to the scanned dependencies.'
+  flagged-count:
+    description: 'Number of claims that triggered warn or fail.'
+  report-json:
+    description: 'Path to a JSON file with the full result.'
+runs:
+  using: 'node24'
+  main: 'index.js'
