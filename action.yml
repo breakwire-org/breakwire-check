@@ -1,6 +1,6 @@
 name: 'Breakwire stack check'
 description: 'Fail or warn when a dependency has a Breakwire deadline (shutdown, retirement, required migration) within N days, or an advisory.'
-author: 'Ho Hum'
+author: 'Breakwire'
 branding:
   icon: 'alert-triangle'
   color: 'orange'
