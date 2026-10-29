@@ -10,6 +10,7 @@ on:
     - cron: '17 6 * * 1'   # Mondays: deadlines move toward you even when your code doesn't
 permissions:
   contents: read
+  pull-requests: write   # lets the action post/update one short PR comment; remove to skip the comment
 jobs:
   breakwire:
     runs-on: ubuntu-latest

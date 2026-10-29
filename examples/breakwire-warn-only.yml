@@ -3,6 +3,7 @@ name: Breakwire (warn only)
 on: [pull_request]
 permissions:
   contents: read
+  pull-requests: write   # one short PR comment, updated in place
 jobs:
   breakwire:
     runs-on: ubuntu-latest

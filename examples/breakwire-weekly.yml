@@ -1,0 +1,22 @@
+# .github/workflows/breakwire-weekly.yml
+# Weekly deadline check. Deadlines move toward you even when your code doesn't, so this runs on a schedule
+# and warns (never fails) about model retirements, API shutdowns and required migrations within 45 days.
+# Results go to the job summary and annotations; there is no PR to comment on in a scheduled run.
+name: Breakwire weekly deadlines
+on:
+  schedule:
+    - cron: '23 7 * * 1'   # Mondays 07:23 UTC; pick any minute
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  breakwire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: breakwire-org/breakwire-check@v1
+        with:
+          days: 45
+          on-deadline: warn
+          on-advisory: warn
+          comment: false

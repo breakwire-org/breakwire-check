@@ -32,6 +32,12 @@ inputs:
   timeout-seconds:
     description: 'Per-request timeout.'
     default: '20'
+  comment:
+    description: 'auto | true | false. Post or update one short PR comment listing affected claims. auto (default) comments on pull_request events when the token has pull-requests: write and skips quietly otherwise; true warns if it cannot comment; false never comments.'
+    default: 'auto'
+  github-token:
+    description: 'Token used for the PR comment. Needs pull-requests: write.'
+    default: '${{ github.token }}'
 outputs:
   applicable-count:
     description: 'Number of Breakwire claims that apply to the scanned dependencies.'
@@ -39,6 +45,8 @@ outputs:
     description: 'Number of claims that triggered warn or fail.'
   report-json:
     description: 'Path to a JSON file with the full result.'
+  comment-url:
+    description: 'URL of the PR comment that was created or updated (empty if none).'
 runs:
   using: 'node24'
   main: 'index.js'

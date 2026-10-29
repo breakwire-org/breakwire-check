@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { parsePackageJson, parseRequirements, parsePyproject, packagesForApi, evaluate, applies, exactVersion, lockVersions, norm } = require('./lib.js');
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
+const { buildComment, upsertComment } = require('./comment.js');
 const input = (name, def = '') => { const v = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`]; return v === undefined || v === '' ? def : v.trim(); };
 const esc = (s) => String(s).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
 const escProp = (s) => esc(s).replace(/:/g, '%3A').replace(/,/g, '%2C');
@@ -126,6 +127,12 @@ async function main() {
   setOutput('applicable-count', applicable.length);
   setOutput('flagged-count', flagged.length);
   setOutput('report-json', reportPath);
+  const mode = input('comment', 'auto').toLowerCase();
+  if (!['auto', 'true', 'false'].includes(mode)) throw new Error(`comment must be auto|true|false, got ${mode}`);
+  const c = await upsertComment({ mode, token: input('github-token'), env: process.env, readFile: (f) => fs.readFileSync(f, 'utf8'), body: buildComment({ applicable, flagged, days, base }), hasClaims: applicable.length > 0 });
+  if (c.url) { console.log(`breakwire-check: PR comment ${c.action}: ${c.url}`); setOutput('comment-url', c.url); }
+  else if (c.action === 'skip' && mode === 'true') annotate('warning', `breakwire-check: PR comment not posted (${c.reason}). Add permissions: pull-requests: write.`);
+  else if (c.action === 'skip') console.log(`breakwire-check: PR comment skipped (${c.reason}).`);
   const fails = flagged.filter((f) => f.level === 'fail').length;
   if (fails) { console.log(`breakwire-check: ${fails} claim(s) at level fail.`); return 1; }
   return 0;

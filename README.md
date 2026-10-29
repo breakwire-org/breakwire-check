@@ -14,7 +14,14 @@ security advisory that covers the version you pinned. Uses `POST https://breakwi
     on-advisory: fail   # fail only when a pinned/locked version is in an affected range; unpinned => warning
 ```
 
-Full workflows: [examples/breakwire.yml](examples/breakwire.yml) (fails), [examples/breakwire-warn-only.yml](examples/breakwire-warn-only.yml).
+Full workflows: [examples/breakwire.yml](examples/breakwire.yml) (fails), [examples/breakwire-warn-only.yml](examples/breakwire-warn-only.yml),
+[examples/breakwire-weekly.yml](examples/breakwire-weekly.yml) (weekly cron, warn only).
+
+**PR comment (v1.1).** On `pull_request` runs the action posts one short comment and updates it in place on later
+runs: affected claims with links, a one-line outcome-report call, and a snippet to copy into `AGENTS.md`. It is on by
+default (`comment: auto`) when the workflow grants `pull-requests: write`, and skips quietly when it doesn't. It
+only creates a comment when at least one claim applies. `comment: false` turns it off; `comment: true` warns if it
+cannot post.
 
 | Input | Default | |
 |---|---|---|
@@ -27,12 +34,14 @@ Full workflows: [examples/breakwire.yml](examples/breakwire.yml) (fails), [examp
 | `base-url` | `https://breakwire.org` | |
 | `fail-on-api-error` | `false` | An outage of Breakwire never breaks your build unless you set this |
 | `timeout-seconds` | `20` | |
+| `comment` | `auto` | `auto` / `true` / `false`: one updatable PR comment (needs `pull-requests: write`) |
+| `github-token` | `${{ github.token }}` | Token for the PR comment |
 
-Outputs: `applicable-count`, `flagged-count`, `report-json` (path to the full result). Each flagged claim becomes an
+Outputs: `applicable-count`, `flagged-count`, `report-json` (path to the full result), `comment-url`. Each flagged claim becomes an
 annotation on the manifest, and the job summary lists everything that applies plus what Breakwire does not cover
 ("not covered" means no claims, not "nothing changed").
 
-What it sends: package names and versions from your manifests (and `engines.node`). Nothing else from your repo.
+What it sends to Breakwire: package names and versions from your manifests (and `engines.node`). Nothing else from your repo. The PR comment goes only to GitHub, with your workflow token.
 
 Limits, honestly: deadlines are matched per service (e.g. any Anthropic SDK version gets the model-retirement date);
 advisory ranges are evaluated only when the version is pinned; Breakwire's community verification has just started.
