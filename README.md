@@ -11,11 +11,15 @@ security advisory that covers the version you pinned. Uses `POST https://breakwi
   with:
     days: 30            # deadline window
     on-deadline: fail   # fail | warn | ignore
+    deadline-policy: specific   # v1.2: only package/runtime/model matches block; service-only matches warn
+    # models: claude-opus-4-7, text-embedding-004   # optional: lifecycle deadlines per model you call
     on-advisory: fail   # fail only when a pinned/locked version is in an affected range; unpinned => warning
 ```
 
 Full workflows: [examples/breakwire.yml](examples/breakwire.yml) (fails), [examples/breakwire-warn-only.yml](examples/breakwire-warn-only.yml),
 [examples/breakwire-weekly.yml](examples/breakwire-weekly.yml) (weekly cron, warn only).
+
+**v1.2.0: fewer false blocks.** Deadlines matched only by service are warnings by default; per-model dates come from the claim's resources (Breakwire 0.9.0). Set `deadline-policy: any` for the old behaviour. Security: the stack request now follows only https redirects to the same origin or breakwire.org, at most 3 hops, and re-sends your dependency list only on 307/308 (earlier versions re-sent it to any `Location`).
 
 **PR comment (v1.1).** On `pull_request` runs the action posts one short comment and updates it in place on later
 runs: affected claims with links, a one-line outcome-report call, and a snippet to copy into `AGENTS.md`. It is on by
@@ -29,6 +33,8 @@ cannot post.
 | `files` | | Explicit manifest list instead of scanning (newline or comma separated) |
 | `days` | `30` | Deadline window |
 | `on-deadline` | `fail` | `fail` / `warn` / `ignore` |
+| `deadline-policy` | `specific` | v1.2.0. `specific`: a deadline fails the step only when it is tied to a package/version, runtime or model you use. A claim matched by service name alone (for example a model retirement found because you depend on that vendor's SDK) is reported as a warning. `any`: service-only deadlines also follow `on-deadline` (the v1.1 behaviour) |
+| `models` | `''` | v1.2.0. Comma/newline list of model ids your code calls. Multi-model lifecycle claims then use that model's own date and state (an already-retired model is reported as overdue, a model whose shutdown is only an earliest-possible date shows that) |
 | `on-advisory` | `fail` | Fails only for versions pinned in the manifest (`==1.2.3`, exact npm version) or `package-lock.json` that fall inside an affected range; otherwise warns |
 | `include-dev` | `true` | devDependencies / dev groups |
 | `base-url` | `https://breakwire.org` | |

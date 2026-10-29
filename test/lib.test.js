@@ -55,3 +55,17 @@ test('evaluate uses applies: fail only when pinned version is affected', () => {
   const f = L.evaluate([{ cid: 'X', kind: 'advisory', applies: 'yes' }, { cid: 'Y', kind: 'advisory', applies: 'unknown' }, { cid: 'Z', kind: 'advisory', applies: 'no' }], { onAdvisory: 'fail', today: '2026-10-28' });
   assert.deepEqual(f.map((x) => x.cid + ':' + x.level), ['X:fail', 'Y:warn']);
 });
+test('v1.2.0: service-only deadline is a warning unless deadline-policy any; model/package matches block', () => {
+  const t = '2026-10-28';
+  // release-gate fixture 12: one SDK, a current model and a retiring model of the same vendor
+  const claims = [
+    { cid: 'RETIRE-OTHER', kind: 'deprecation', deadline: '2026-11-30', match: { by: 'service', services: ['anthropic-api'] }, bucket: 'context_only' },
+    { cid: 'RETIRE-MINE', kind: 'deprecation', deadline: '2026-11-30', next_deadline: { date: '2026-11-20' }, match: { by: 'model', model: 'claude-sonnet-4-5-20250929' }, bucket: 'exactly_applies' },
+    { cid: 'PKG', kind: 'deprecation', deadline: '2026-11-15', match: { by: 'package', package: 'npm:x', applicability: 'affected' }, bucket: 'exactly_applies' },
+  ];
+  const f = L.evaluate(claims, { days: 60, today: t });
+  assert.deepEqual(f.map((x) => `${x.cid}:${x.level}:${x.match_basis}`), ['RETIRE-OTHER:warn:service-only', 'RETIRE-MINE:fail:model', 'PKG:fail:package']);
+  assert.equal(f[1].due, '2026-11-20'); // per-resource date wins over the claim headline date
+  assert.equal(L.evaluate(claims, { days: 60, today: t, deadlinePolicy: 'any' })[0].level, 'fail');
+  assert.equal(L.evaluate(claims, { days: 60, today: t, onDeadline: 'warn' })[1].level, 'warn');
+});

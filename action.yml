@@ -17,6 +17,12 @@ inputs:
   on-deadline:
     description: 'fail | warn | ignore for deadlines within `days`.'
     default: 'fail'
+  deadline-policy:
+    description: 'specific (default) | any. specific: a deadline fails only when it matches a package/version, runtime or model you use; a claim matched by service name alone (e.g. a model retirement found via the vendor SDK) is a warning. any: service-only deadlines also use on-deadline.'
+    default: 'specific'
+  models:
+    description: 'Optional: newline- or comma-separated model ids your code calls (e.g. claude-opus-4-7). Lifecycle deadlines then match per model, and only your models block.'
+    default: ''
   on-advisory:
     description: 'fail | warn | ignore for security advisories. fail applies only when a version pinned in the manifest (==1.2.3 / exact) or package-lock.json is inside an affected range; unpinned dependencies always get a warning.'
     default: 'fail'

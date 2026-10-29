@@ -2,9 +2,9 @@
 // breakwire-check: zero-dependency GitHub Action (node24). Reads manifests, calls POST /api/stack, flags deadlines/advisories.
 const fs = require('fs');
 const path = require('path');
-const { parsePackageJson, parseRequirements, parsePyproject, packagesForApi, evaluate, applies, exactVersion, lockVersions, norm } = require('./lib.js');
+const { parsePackageJson, parseRequirements, parsePyproject, packagesForApi, evaluate, applies, exactVersion, lockVersions, norm, postStack } = require('./lib.js');
 
-const VERSION = '1.1.1';
+const VERSION = '1.2.0';
 const { buildComment, upsertComment } = require('./comment.js');
 const input = (name, def = '') => { const v = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`]; return v === undefined || v === '' ? def : v.trim(); };
 const esc = (s) => String(s).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
@@ -26,19 +26,7 @@ function findManifests(root, depth = 0, out = []) {
   return out;
 }
 
-async function post(base, body, timeoutMs) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    let url = base.replace(/\/+$/, '') + '/api/stack';
-    const init = { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': `breakwire-check/${VERSION} (+github-action)`, 'x-breakwire-client': `breakwire-action/${VERSION}` }, body: JSON.stringify(body), signal: ctrl.signal, redirect: 'manual' };
-    let res = await fetch(url, init);
-    for (let i = 0; i < 2 && res.status >= 301 && res.status <= 308 && res.headers.get('location'); i++) { url = new URL(res.headers.get('location'), url).toString(); res = await fetch(url, init); }
-    const text = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-    return JSON.parse(text);
-  } finally { clearTimeout(t); }
-}
+async function post(base, body, timeoutMs) { return postStack(base, body, { timeoutMs, version: VERSION }); }
 
 async function main() {
   const root = input('path', '.');
@@ -46,6 +34,9 @@ async function main() {
   const days = parseInt(input('days', '30'), 10);
   const onDeadline = input('on-deadline', 'fail');
   const onAdvisory = input('on-advisory', 'fail');
+  const deadlinePolicy = input('deadline-policy', 'specific');
+  if (!['specific', 'any'].includes(deadlinePolicy)) throw new Error(`deadline-policy must be specific|any, got ${deadlinePolicy}`);
+  const models = input('models').split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
   const includeDev = input('include-dev', 'true') !== 'false';
   const base = input('base-url', 'https://breakwire.org');
   const failOnApiError = input('fail-on-api-error', 'false') === 'true';
@@ -77,7 +68,7 @@ async function main() {
       }
     } catch (e) { annotate('warning', `breakwire-check: could not parse ${file}: ${e.message}`, file); continue; }
     try {
-      const r = await post(base, body, timeoutMs);
+      const r = await post(base, models.length ? { ...body, models } : body, timeoutMs);
       results.push({ file, manifest, sent: body.packages || Object.keys({ ...body.dependencies, ...(body.devDependencies || {}) }), ...r });
     } catch (e) {
       const msg = `breakwire-check: Breakwire API unreachable for ${file} (${e.message}).`;
@@ -95,9 +86,9 @@ async function main() {
   }
   const applicable = [...seen.values()].map((c) => ({ ...c, applies: c.verdicts.includes('yes') ? 'yes' : c.verdicts.every((v) => v === 'no') ? 'no' : 'unknown', files: c.files.length ? c.files : c.files })).filter((c) => c.applies !== 'no');
   const skipped = [...seen.values()].filter((c) => c.verdicts.every((v) => v === 'no')).map((c) => c.cid);
-  const flagged = evaluate(applicable, { days, onDeadline, onAdvisory });
+  const flagged = evaluate(applicable, { days, onDeadline, onAdvisory, deadlinePolicy });
   for (const f of flagged) {
-    const when = f.reason === 'deadline' ? `deadline ${f.deadline} (${f.days_left} days)` : f.applies === 'yes' ? 'advisory (your pinned version is in the affected range)' : 'advisory (version not pinned; check affected ranges)';
+    const when = f.reason === 'deadline' ? `deadline ${f.due} (${f.days_left} days)${f.match_basis === 'service-only' ? ' [matched by service only: advisory; set deadline-policy: any to block, or list your models]' : ''}` : f.applies === 'yes' ? 'advisory (your pinned version is in the affected range)' : 'advisory (version not pinned; check affected ranges)';
     annotate(f.level === 'fail' ? 'error' : 'warning', `${f.cid} ${when}: ${f.title}\nFix: ${f.fix || 'see claim'}\n${f.url}`, f.files[0]);
   }
 
@@ -112,13 +103,13 @@ async function main() {
   const lines = [`## Breakwire stack check`, '', `Scanned ${results.length} manifest(s): ${results.map((r) => '`' + r.file + '`').join(', ') || 'none'}. ${applicable.length} applicable claim(s), ${flagged.length} flagged (deadline window ${days} days).`, ''];
   if (flagged.length) {
     lines.push('| | Claim | Why | Fix |', '|---|---|---|---|');
-    for (const f of flagged) lines.push(`| ${f.level === 'fail' ? '❌' : '⚠️'} | [${f.cid}](${f.url}) ${String(f.title).replace(/\|/g, '\\|')} | ${f.reason === 'deadline' ? `deadline ${f.deadline} (${f.days_left}d)` : 'advisory'} | ${String(f.fix || '').replace(/\|/g, '\\|').replace(/\n/g, ' ').slice(0, 300)} |`);
+    for (const f of flagged) lines.push(`| ${f.level === 'fail' ? '❌' : '⚠️'} | [${f.cid}](${f.url}) ${String(f.title).replace(/\|/g, '\\|')} | ${f.reason === 'deadline' ? `deadline ${f.due} (${f.days_left}d)${f.match_basis === 'service-only' ? ', service match only' : ''}` : 'advisory'} | ${String(f.fix || '').replace(/\|/g, '\\|').replace(/\n/g, ' ').slice(0, 300)} |`);
     lines.push('');
   }
   const other = applicable.filter((c) => !flagged.some((f) => f.cid === c.cid));
   if (other.length) { lines.push('<details><summary>Other applicable claims</summary>', '', ...other.map((c) => `- [${c.cid}](${c.url}) ${c.title}${c.deadline ? ` (deadline ${c.deadline})` : ''}`), '', '</details>', ''); }
   if (skipped.length) lines.push(`Skipped as not applicable to your ecosystem or pinned versions: ${skipped.join(', ')}.`, '');
-  lines.push(`Not covered by Breakwire (no claims, which does not mean nothing changed): ${notCovered.slice(0, 30).map((n) => '`' + n + '`').join(' ') || 'none'}.`, '', `Advisories fail only when a version pinned in the manifest or package-lock.json falls inside an affected range; unpinned dependencies get a warning. Deadlines apply per service, not per version. Claims are community data; each links its primary source.`);
+  lines.push(`Not covered by Breakwire (no claims, which does not mean nothing changed): ${notCovered.slice(0, 30).map((n) => '`' + n + '`').join(' ') || 'none'}.`, '', `Advisories fail only when a version pinned in the manifest or package-lock.json falls inside an affected range; unpinned dependencies get a warning. Deadlines fail only when tied to a package, runtime or model you use (deadline-policy: specific); service-only matches warn. Claims are community data; each links its primary source.`);
   appendFile('GITHUB_STEP_SUMMARY', lines.join('\n') + '\n');
   if (!process.env.GITHUB_STEP_SUMMARY) console.log(lines.join('\n'));
 

@@ -25,7 +25,7 @@ function buildComment({ applicable, flagged, days, base }) {
   for (const c of rows) {
     const f = flagged.find((x) => x.cid === c.cid);
     const mark = f ? (f.level === 'fail' ? '❌' : '⚠️') : '•';
-    const when = c.deadline ? ` · deadline ${c.deadline}${c.days_left != null ? ` (${c.days_left}d)` : ''}` : '';
+    const dd = c.due || c.deadline; const when = dd ? ` · deadline ${dd}${c.days_left != null ? ` (${c.days_left}d)` : ''}${c.match_basis === 'service-only' ? ' (service match only: advisory)' : ''}` : '';
     lines.push(`- ${mark} [${c.cid}](${c.url || `${b}/claim/${c.cid}`}) ${cell(c.title, 100)}${when}${c.fix ? ` · fix: ${cell(c.fix, 110)}` : ''}`);
   }
   if (applicable.length > rows.length) lines.push(`- …and ${applicable.length - rows.length} more in the job summary.`);
