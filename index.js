@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { parsePackageJson, parseRequirements, parsePyproject, packagesForApi, evaluate, applies, exactVersion, lockVersions, norm } = require('./lib.js');
 
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 const { buildComment, upsertComment } = require('./comment.js');
 const input = (name, def = '') => { const v = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`]; return v === undefined || v === '' ? def : v.trim(); };
 const esc = (s) => String(s).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
@@ -31,7 +31,7 @@ async function post(base, body, timeoutMs) {
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     let url = base.replace(/\/+$/, '') + '/api/stack';
-    const init = { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': `breakwire-check/${VERSION} (+github-action)` }, body: JSON.stringify(body), signal: ctrl.signal, redirect: 'manual' };
+    const init = { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': `breakwire-check/${VERSION} (+github-action)`, 'x-breakwire-client': `breakwire-action/${VERSION}` }, body: JSON.stringify(body), signal: ctrl.signal, redirect: 'manual' };
     let res = await fetch(url, init);
     for (let i = 0; i < 2 && res.status >= 301 && res.status <= 308 && res.headers.get('location'); i++) { url = new URL(res.headers.get('location'), url).toString(); res = await fetch(url, init); }
     const text = await res.text();
