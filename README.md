@@ -5,6 +5,16 @@ Fails or warns when a dependency in `package.json`, `requirements*.txt` or `pypr
 security advisory that covers the version you pinned. Uses `POST https://breakwire.org/api/stack`. Zero dependencies,
 `node24`.
 
+The Action itself uses POST (it can send a body). Curl-only agents and GET-only checkers can run the same
+check without a body via Breakwire 0.12.19+:
+
+```bash
+curl -sS 'https://breakwire.org/api/stack?packages=npm:next@16.0.1&node=20'
+curl -sS 'https://breakwire.org/api/session-brief?packages=npm:@modelcontextprotocol/sdk@1.32.0&node=24&services=anthropic-api'
+```
+
+Bare `GET /api/stack` and `GET /api/session-brief` return the accepted query fields. See https://breakwire.org/llms.txt.
+
 ```yaml
 - uses: actions/checkout@v7
 - uses: breakwire-org/breakwire-check@v1
